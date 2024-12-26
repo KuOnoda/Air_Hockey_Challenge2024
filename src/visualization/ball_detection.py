@@ -1,4 +1,5 @@
 import cv2
+from cv2 import aruco
 import numpy as np
 import time
 
@@ -15,6 +16,11 @@ class CameraTracker:
         self.cap = None
         self.previous_cx = 0
         self.previous_cy = 0
+
+        # ArUcoマーカー関連の初期化
+        self.dictionary = aruco.getPredefinedDictionary(aruco.DICT_4X4_50)
+        self.parameters = aruco.DetectorParameters()
+        self.detector = aruco.ArucoDetector(self.dictionary, self.parameters)
     
     def find_camera_device(self):
         if self.dev_num == -1:
@@ -35,7 +41,20 @@ class CameraTracker:
         else:
             self.cap = cv2.VideoCapture('./../data/air_hockey.mp4')
         self.cap.set(cv2.CAP_PROP_FPS, self.frequency)
+        self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
+        self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
     
+    def detect_markers(self, frame):
+        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        corners, ids, rejectedCandidates = self.detector.detectMarkers(gray)
+
+        if ids is not None:
+            frame = aruco.drawDetectedMarkers(frame, corners, ids)
+            for i, corner in enumerate(corners):
+                center = np.mean(corner[0], axis=0)
+                print(f"検出されたマーカーID: {ids[i][0]}, 位置: {center}")
+        return frame
+
     def track(self):
         start_time = time.time()
         while cv2.waitKey(int(1000 / self.frequency)) != 27:  # ESC to exit
@@ -43,10 +62,12 @@ class CameraTracker:
             if not ret:
                 print("Failed to capture frame. Exiting...")
                 break
-            
-            hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
 
-            # Red color mask
+            # ArUcoマーカーの検出
+            frame = self.detect_markers(frame)
+
+            # HSV変換による赤色検出（元々の機能）
+            hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
             lower_red1, upper_red1 = np.array([0, 100, 100]), np.array([10, 255, 255])
             lower_red2, upper_red2 = np.array([170, 100, 100]), np.array([180, 255, 255])
             mask1 = cv2.inRange(hsv, lower_red1, upper_red1)
