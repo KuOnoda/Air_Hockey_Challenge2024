@@ -55,48 +55,48 @@ class CameraTracker:
                 print(f"検出されたマーカーID: {ids[i][0]}, 位置: {center}")
         return frame
 
-    def track(self):
-        start_time = time.time()
-        while cv2.waitKey(int(1000 / self.frequency)) != 27:  # ESC to exit
-            ret, frame = self.cap.read()
-            if not ret:
-                print("Failed to capture frame. Exiting...")
-                break
+    # def track(self):
+    #     start_time = time.time()
+    #     while cv2.waitKey(int(1000 / self.frequency)) != 27:  # ESC to exit
+    #         ret, frame = self.cap.read()
+    #         if not ret:
+    #             print("Failed to capture frame. Exiting...")
+    #             break
 
-            # ArUcoマーカーの検出
-            frame = self.detect_markers(frame)
+    #         # ArUcoマーカーの検出
+    #         frame = self.detect_markers(frame)
 
-            # HSV変換による赤色検出（元々の機能）
-            hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
-            lower_red1, upper_red1 = np.array([0, 100, 100]), np.array([10, 255, 255])
-            lower_red2, upper_red2 = np.array([170, 100, 100]), np.array([180, 255, 255])
-            mask1 = cv2.inRange(hsv, lower_red1, upper_red1)
-            mask2 = cv2.inRange(hsv, lower_red2, upper_red2)
-            mask = mask1 + mask2
-            res = cv2.bitwise_and(frame, frame, mask=mask)
+    #         # HSV変換による赤色検出（元々の機能）
+    #         hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
+    #         lower_red1, upper_red1 = np.array([0, 100, 100]), np.array([10, 255, 255])
+    #         lower_red2, upper_red2 = np.array([170, 100, 100]), np.array([180, 255, 255])
+    #         mask1 = cv2.inRange(hsv, lower_red1, upper_red1)
+    #         mask2 = cv2.inRange(hsv, lower_red2, upper_red2)
+    #         mask = mask1 + mask2
+    #         res = cv2.bitwise_and(frame, frame, mask=mask)
 
-            gray = cv2.cvtColor(res, cv2.COLOR_BGR2GRAY)
-            contours, _ = cv2.findContours(gray, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+    #         gray = cv2.cvtColor(res, cv2.COLOR_BGR2GRAY)
+    #         contours, _ = cv2.findContours(gray, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
 
-            for contour in contours:
-                if cv2.contourArea(contour) > self.threshold_of_contour_length:
-                    moment = cv2.moments(contour)
-                    if moment['m00'] != 0:
-                        cx = int(moment['m10'] / moment['m00'])
-                        cy = int(moment['m01'] / moment['m00'])
-                        cv2.circle(frame, (cx, cy), 5, (0, 0, 255), -1)
-                        cv2.putText(frame, f'Center: ({cx}, {cy})', (cx + 10, cy - 10), 
-                                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
-                        print(f'Center: ({cx}, {cy})')
-                        print(f'Center velocity: ({(cx - self.previous_cx) * 1000 / self.frequency}, '
-                              f'{(cy - self.previous_cy) * 1000 / self.frequency})')
-                        self.previous_cx, self.previous_cy = cx, cy
+    #         for contour in contours:
+    #             if cv2.contourArea(contour) > self.threshold_of_contour_length:
+    #                 moment = cv2.moments(contour)
+    #                 if moment['m00'] != 0:
+    #                     cx = int(moment['m10'] / moment['m00'])
+    #                     cy = int(moment['m01'] / moment['m00'])
+    #                     cv2.circle(frame, (cx, cy), 5, (0, 0, 255), -1)
+    #                     cv2.putText(frame, f'Center: ({cx}, {cy})', (cx + 10, cy - 10), 
+    #                                 cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
+    #                     print(f'Center: ({cx}, {cy})')
+    #                     print(f'Center velocity: ({(cx - self.previous_cx) * 1000 / self.frequency}, '
+    #                           f'{(cy - self.previous_cy) * 1000 / self.frequency})')
+    #                     self.previous_cx, self.previous_cy = cx, cy
 
-            cv2.drawContours(frame, contours, -1, (0, 255, 0), 2)
-            cv2.imshow(f'Video {self.frequency}Hz', frame)
+    #         cv2.drawContours(frame, contours, -1, (0, 255, 0), 2)
+    #         cv2.imshow(f'Video {self.frequency}Hz', frame)
 
-            if time.time() - start_time > self.capture_time:
-                break
+    #         if time.time() - start_time > self.capture_time:
+    #             break
     def track_when_it_called(self):
         start_time = time.time()
         
