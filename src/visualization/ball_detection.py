@@ -5,7 +5,7 @@ import time
 
 class CameraTracker:
     def __init__(self, dev_num=-1, capture_time=5000000000, use_camera=True, search_range_devices=100, 
-                 threshold_of_contour_length=100, frequency=60):
+                 threshold_of_contour_length=100, frequency=200):
         # カメラデバイス番号がわからない場合はdev_numを -1 に設定。find_camera_device()で探索する。
         self.dev_num = dev_num
         self.capture_time = capture_time
@@ -97,6 +97,47 @@ class CameraTracker:
 
             if time.time() - start_time > self.capture_time:
                 break
+    def track_when_it_called(self):
+        start_time = time.time()
+        
+        _, frame = self.cap.read()
+
+
+        # ArUcoマーカーの検出
+        frame = self.detect_markers(frame)
+
+        # HSV変換による赤色検出（元々の機能）
+        hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
+        lower_red1, upper_red1 = np.array([0, 100, 100]), np.array([10, 255, 255])
+        lower_red2, upper_red2 = np.array([170, 100, 100]), np.array([180, 255, 255])
+        mask1 = cv2.inRange(hsv, lower_red1, upper_red1)
+        mask2 = cv2.inRange(hsv, lower_red2, upper_red2)
+        mask = mask1 + mask2
+        res = cv2.bitwise_and(frame, frame, mask=mask)
+
+        gray = cv2.cvtColor(res, cv2.COLOR_BGR2GRAY)
+        contours, _ = cv2.findContours(gray, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+
+        for contour in contours:
+            if cv2.contourArea(contour) > self.threshold_of_contour_length:
+                moment = cv2.moments(contour)
+                if moment['m00'] != 0:
+                    cx = int(moment['m10'] / moment['m00'])
+                    cy = int(moment['m01'] / moment['m00'])
+                    cv2.circle(frame, (cx, cy), 5, (0, 0, 255), -1)
+                    cv2.putText(frame, f'Center: ({cx}, {cy})', (cx + 10, cy - 10), 
+                                cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
+                    print(f'Center: ({cx}, {cy})')
+                    print(f'Center velocity: ({(cx - self.previous_cx) * 1000 / self.frequency}, '
+                            f'{(cy - self.previous_cy) * 1000 / self.frequency})')
+                    self.previous_cx, self.previous_cy = cx, cy
+
+        cv2.drawContours(frame, contours, -1, (0, 255, 0), 2)
+        cv2.imshow(f'Video {self.frequency}Hz', frame)
+
+
+        return cx,cy,(cx - self.previous_cx) * 1000 / self.frequency,(cy - self.previous_cy) * 1000 / self.frequency#center_x,center_y,center_velocity_x,center_velocity_y
+
 
     def release_resources(self):
         if self.cap:
@@ -108,5 +149,6 @@ if __name__ == "__main__":
     tracker = CameraTracker()
     tracker.find_camera_device()
     tracker.setup_camera()
-    tracker.track()
+    print(tracker.track_when_it_called())
     tracker.release_resources()
+
